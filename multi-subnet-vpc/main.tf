@@ -191,6 +191,7 @@ resource "aws_security_group" "atd_bastion" {
 # Configure the Bastion Host
 resource "aws_instance" "bastion_host" {
   ami                         = "ami-047a51fa27710816e" # Amazon Linux 2 AMI
+  key_name                    = "atd_keypair"
   instance_type               = "t2.micro"
   associate_public_ip_address = true
   subnet_id                   = aws_subnet.atd_public1.id
@@ -208,3 +209,56 @@ resource "aws_instance" "bastion_host" {
 ## Went back to aws_network_acl.atd_public1 and added new ingress/egress
 
 # Private3 Setup
+resource "aws_network_acl" "atd_private_3" {
+  vpc_id = aws_vpc.atd_vpc.id
+  subnet_ids = [aws_subnet.atd_private3.id, aws_subnet.atd_private4.id]
+
+  ingress {
+    protocol   = "tcp"
+    rule_no    = 110
+    action     = "allow"
+    cidr_block = "192.168.0.0/26"
+    from_port  = 22
+    to_port    = 22
+  }
+
+  ingress {
+    protocol   = "icmp"
+    rule_no    = 120
+    action     = "allow"
+    cidr_block = "0.0.0.0/0"
+    from_port  = 0
+    to_port    = 0
+  }
+
+  ingress {
+    protocol   = "tcp"
+    rule_no    = 130
+    action     = "allow"
+    cidr_block = "0.0.0.0/0"
+    from_port  = 1024
+    to_port    = 65535
+  }
+
+  egress {
+    protocol    = "https"
+    rule_no     = "110"
+    action      = "allow"
+    from_port   = 443
+    to_port     = 443
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    protocol    = "icmp"
+    rule_no     = "120"
+    action      = "allow"
+    from_port   = 0
+    to_port     = 0
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "ATD_Private3"
+  }
+}
