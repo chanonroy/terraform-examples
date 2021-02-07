@@ -1,4 +1,4 @@
-# networking
+# Terraform Examples
 
 Learning Networking and other concepts in cloud providers using terraform
 
