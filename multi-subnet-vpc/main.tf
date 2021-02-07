@@ -188,6 +188,40 @@ resource "aws_security_group" "atd_bastion" {
   }
 }
 
+resource "aws_security_group" "atd_private34_secgrp" {
+  name        = "ATD_Private34_SecGrp"
+  description = "ATD_Private34_SecGrp"
+  vpc_id      = aws_vpc.atd_vpc.id
+
+  ingress {
+    description = "SSH from Bastion Host"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["192.168.0.0/24"]
+  }
+
+  egress {
+    description = "HTTPS"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "ICMP"
+    from_port   = -1
+    to_port     = -1
+    protocol    = "icmp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "ATD_Bastion-SG"
+  }
+}
+
 # Configure the Bastion Host
 resource "aws_instance" "bastion_host" {
   ami                         = "ami-047a51fa27710816e" # Amazon Linux 2 AMI
