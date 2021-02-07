@@ -225,7 +225,7 @@ resource "aws_security_group" "atd_private34_secgrp" {
 # Configure the Bastion Host
 resource "aws_instance" "bastion_host" {
   ami                         = "ami-047a51fa27710816e" # Amazon Linux 2 AMI
-  key_name                    = "atd_keypair"
+  key_name                    = var.key_pair_name
   instance_type               = "t2.micro"
   associate_public_ip_address = true
   subnet_id                   = aws_subnet.atd_public1.id
@@ -235,12 +235,6 @@ resource "aws_instance" "bastion_host" {
     Name = "BastionHost"
   }
 }
-
-### NOTE: Download the keypair from the UI yourself, not practical to generate one here
-
-# Allow Traffic from the Bastion Host to the Application Servers
-## Went back to aws_security_group.atd_bastion and added new egress
-## Went back to aws_network_acl.atd_public1 and added new ingress/egress
 
 # Private3 Setup
 resource "aws_network_acl" "atd_private_3" {
