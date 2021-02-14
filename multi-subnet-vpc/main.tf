@@ -97,6 +97,11 @@ resource "aws_route_table_association" "atd_publicrt_subnet_2" {
 resource "aws_route_table" "atd_privatert" {
   vpc_id = aws_vpc.atd_vpc.id
 
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_nat_gateway.atd_ngw.id
+  }
+
   tags = {
     Name = "ATD_PrivateRT"
   }
@@ -112,7 +117,7 @@ resource "aws_route_table_association" "atd_privatert_subnet_2" {
   route_table_id = aws_route_table.atd_privatert.id
 }
 
-# Configure a NACL
+# Configure NACLs
 resource "aws_network_acl" "atd_public1" {
   vpc_id = aws_vpc.atd_vpc.id
   # The subnet associations
@@ -160,6 +165,79 @@ resource "aws_network_acl" "atd_public1" {
   }
 }
 
+resource "aws_network_acl" "atd_public2-nacl" {
+  vpc_id = aws_vpc.atd_vpc.id
+  # The subnet associations
+  subnet_ids = [aws_subnet.atd_public2.id]
+
+  ingress {
+    protocol   = "tcp"
+    rule_no    = 110
+    action     = "allow"
+    cidr_block = "192.168.0.0/24"
+    from_port  = 443
+    to_port    = 443
+  }
+
+  ingress {
+    protocol   = "tcp"
+    rule_no    = 120
+    action     = "allow"
+    cidr_block = "0.0.0.0/0"
+    from_port  = 1024
+    to_port    = 65535
+  }
+
+  ingress {
+    protocol   = "icmp"
+    icmp_type  = -1
+    icmp_code  = -1
+    rule_no    = 130
+    action     = "allow"
+    cidr_block = "0.0.0.0/0"
+    from_port  = 0
+    to_port    = 0
+  }
+
+  egress {
+    protocol   = "tcp"
+    rule_no    = 110
+    action     = "allow"
+    cidr_block = "0.0.0.0/0"
+    from_port  = 443
+    to_port    = 443
+  }
+
+  egress {
+    protocol   = "tcp"
+    rule_no    = 120
+    action     = "allow"
+    cidr_block = "192.168.0.0/24"
+    from_port  = 1024
+    to_port    = 65535
+  }
+
+  egress {
+    protocol   = "icmp"
+    icmp_type  = -1
+    icmp_code  = -1
+    rule_no    = 130
+    action     = "allow"
+    cidr_block = "0.0.0.0/0"
+    from_port  = 0
+    to_port    = 0
+  }
+
+  tags = {
+    Name = "ATD_Public2-NACL"
+  }
+}
+
+## Need to create an elastic IP address to associate with the nat gateway
+resource "aws_eip" "atd_eip" {
+  vpc = true
+}
+
 # Security Groups
 resource "aws_security_group" "atd_bastion" {
   name        = "ATD_Bastion-SG"
@@ -188,7 +266,7 @@ resource "aws_security_group" "atd_bastion" {
   }
 }
 
-resource "aws_security_group" "atd_private34_secgrp" {
+resource "aws_security_group" "atd_private34" {
   name        = "ATD_Private34_SecGrp"
   description = "ATD_Private34_SecGrp"
   vpc_id      = aws_vpc.atd_vpc.id
@@ -272,7 +350,7 @@ resource "aws_network_acl" "atd_private_3" {
 
   egress {
     protocol   = "tcp"
-    rule_no    = "110"
+    rule_no    = 110
     action     = "allow"
     from_port  = 443
     to_port    = 443
@@ -281,7 +359,7 @@ resource "aws_network_acl" "atd_private_3" {
 
   egress {
     protocol   = "icmp"
-    rule_no    = "120"
+    rule_no    = 120
     action     = "allow"
     from_port  = 0
     to_port    = 0
@@ -292,5 +370,28 @@ resource "aws_network_acl" "atd_private_3" {
 
   tags = {
     Name = "ATD_Private3"
+  }
+}
+
+# Create an EC2 Instance in the Private Subnet
+resource "aws_instance" "private_app_server" {
+  ami                         = "ami-047a51fa27710816e" # Amazon Linux 2 AMI
+  instance_type               = "t2.micro"
+  associate_public_ip_address = false
+  subnet_id                   = aws_subnet.atd_private3.id
+  security_groups             = [aws_security_group.atd_private34.id]
+  key_name                    = "atd_keypair"
+
+  tags = {
+    Name = "PrivateAppServer"
+  }
+}
+
+resource "aws_nat_gateway" "atd_ngw" {
+  allocation_id = aws_eip.atd_eip.id
+  subnet_id     = aws_subnet.atd_public2.id
+
+  tags = {
+    Name = "ATD Public2 NAT Gateway"
   }
 }
